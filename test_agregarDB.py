@@ -93,18 +93,39 @@ def main():
 
     try:
         # Subir una imagen base desde una ruta estática
-        ruta_base = "C:/Users/fjuarez/Desktop/a/ryan2.jpg"
+        #ruta_base = "C:/Users/fjuarez/Desktop/a/ryan2111.jpg"
 
         # Agregar la imagen base utilizando solo la ruta
         imagen_base = agregar_imagen_base(
             db=db,
-            ruta_imagen=ruta_base,
+            ruta_imagen=r"C:\Users\fjuarez\Desktop\a\ryan2.jpg",
+            descripcion="Imagen base agregada automáticamente."
+        )
+        # Agregar la imagen base utilizando solo la ruta
+        agregar_imagen_base(
+            db=db,
+            ruta_imagen=r"C:\Users\fjuarez\Desktop\a\ryan2.jpg",
             descripcion="Imagen base agregada automáticamente."
         )
         print(f"Imagen base agregada: {imagen_base.IdImagenBase}")
 
+
+
+
+
+    finally:
+        # Cerrar la sesión de base de datos
+        db.close()
+
+
+if __name__ == "__main__":
+    main()
+
+
+"""
         # Subir una imagen recibida desde una ruta estática
-        ruta_recibida = "C:/Users/fjuarez/Desktop/a/ryan3.jpg"
+        ruta_recibida = "C:/Users/fjuarez/Desktop/a/ryan3111.jpg"
+
 
         # Agregar la imagen recibida utilizando solo la ruta
         imagen_recibida = agregar_imagen_recibida(
@@ -115,10 +136,4 @@ def main():
         )
         print(f"Imagen recibida agregada: {imagen_recibida.IdImagenRecibida}")
 
-    finally:
-        # Cerrar la sesión de base de datos
-        db.close()
-
-
-if __name__ == "__main__":
-    main()
+"""

@@ -3,7 +3,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 # Cadena de conexión a SQL Server usando pyodbc
-SQLALCHEMY_DATABASE_URL = r"mssql+pyodbc://sa:Inquieto.17@FJUAREZ\SQLEXPRESS/ReconocimientoFacial?driver=SQL+Server+Native+Client+11.0"
+SQLALCHEMY_DATABASE_URL = "mssql+pyodbc://sa:Inquieto.17@FJUAREZ\\SQLEXPRESS/ReconocimientoFacial?driver=SQL+Server+Native+Client+11.0"
 
 # Crear el motor de conexión a la base de datos
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
