@@ -1,36 +1,25 @@
 import face_recognition
 import os
-from fastapi.responses import JSONResponse
-from app.config import SessionLocal
-from app.models import ComparacionResultado
 from sqlalchemy.orm import Session
+from app.models import ComparacionResultado, ImagenBase
 
 
-# Carpeta donde se guardarán las imágenes temporalmente
+# Carpeta donde se guardarán las imágenes base y recibidas
 BASE_IMAGE_DIR = "images/base"
+RECEIVED_IMAGE_DIR = "images/recibida"
 
 # Función para comparar la imagen recibida con el banco de imágenes en la carpeta base
-async def comparar_con_base_b(imagen_recibida):
-
-    # Verificar que la carpeta base exista
-    if not os.path.exists(BASE_IMAGE_DIR):
-        return JSONResponse(content={"error": "No se encontró la carpeta base de imágenes."}, status_code=400)
-
-    # Guardar temporalmente la imagen recibida
-    received_image_path = f"images/recibida/{imagen_recibida.filename}"
-    with open(received_image_path, "wb") as f:
-        f.write(await imagen_recibida.read())
-
+async def comparar_con_base(image_path: str, db: Session):
     # Cargar la imagen recibida
-    received_image = face_recognition.load_image_file(received_image_path)
+    received_image = face_recognition.load_image_file(image_path)
 
     try:
         # Obtener el encoding de la imagen recibida
         received_encoding = face_recognition.face_encodings(received_image)[0]
     except IndexError:
-        return JSONResponse(content={"error": "No se detectó ningún rostro en la imagen recibida."}, status_code=400)
+        return {"resultado": "No se detectó ningún rostro en la imagen recibida."}
 
-    # Recorrer todas las imágenes de la carpeta base
+    # Recorrer todas las imágenes base
     for base_image_filename in os.listdir(BASE_IMAGE_DIR):
         base_image_path = os.path.join(BASE_IMAGE_DIR, base_image_filename)
 
@@ -39,65 +28,30 @@ async def comparar_con_base_b(imagen_recibida):
         try:
             base_encoding = face_recognition.face_encodings(base_image)[0]
         except IndexError:
-            continue  # Si no se encuentra un rostro en una imagen base, pasar a la siguiente
+            continue  # Si no hay rostros, saltar la imagen
 
         # Comparar la imagen recibida con la imagen base
         resultado = face_recognition.compare_faces([base_encoding], received_encoding)
 
         if resultado[0]:
-            return {"resultado": f"La imagen coincide con {base_image_filename}"}
+            # Si hay coincidencia, guardar en la base de datos
+            imagen_base = db.query(ImagenBase).filter(ImagenBase.Nombre == base_image_filename).first()
+            guardar_resultado(db, None, imagen_base.IdImagenBase, "Coincide")
+            return f"La imagen coincide con {base_image_filename}"
 
     # Si no hay coincidencias
-    return {"resultado": "No hay coincidencias con las imágenes de la base"}
+    guardar_resultado(db, None, None, "No coincide")
+    return "No hay coincidencias con las imágenes de la base"
 
-
-# Función para obtener la sesión de la base de datos
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-# Función para almacenar el resultado de la comparación en la base de datos
-def guardar_resultado(db: Session, imagen_recibida: str, imagen_base: str, resultado: str):
-    resultado_comparacion = ComparacionResultado(
-        imagen_recibida=imagen_recibida, imagen_base=imagen_base, resultado=resultado
+# Función para guardar el resultado en la base de datos
+def guardar_resultado(db: Session, imagen_recibida_id: int, imagen_base_id: int, resultado: str):
+    comparacion = ComparacionResultado(
+        IdImagenRecibida=imagen_recibida_id,
+        IdImagenBase=imagen_base_id,
+        ResultadoComparacion=100.0 if resultado == "Coincide" else 0.0,
+        Ubicacion="Coincidencia" if resultado == "Coincide" else "No coincidencia"
     )
-    db.add(resultado_comparacion)
+    db.add(comparacion)
     db.commit()
-    db.refresh(resultado_comparacion)
-    return resultado_comparacion
-
-
-async def comparar_con_base(imagen_recibida, db: Session):
-    # Guardar la imagen recibida temporalmente
-    received_image_path = f"images/recibida/{imagen_recibida.filename}"
-    with open(received_image_path, "wb") as f:
-        f.write(await imagen_recibida.read())
-
-    # Cargar la imagen recibida
-    received_image = face_recognition.load_image_file(received_image_path)
-    try:
-        received_encoding = face_recognition.face_encodings(received_image)[0]
-    except IndexError:
-        return JSONResponse(content={"error": "No se detectó ningún rostro en la imagen recibida."}, status_code=400)
-
-    # Iterar sobre todas las imágenes base
-    for base_image_filename in os.listdir(BASE_IMAGE_DIR):
-        base_image_path = os.path.join(BASE_IMAGE_DIR, base_image_filename)
-        base_image = face_recognition.load_image_file(base_image_path)
-        try:
-            base_encoding = face_recognition.face_encodings(base_image)[0]
-        except IndexError:
-            continue  # Pasar a la siguiente si no se detecta rostro
-
-        # Comparar las imágenes
-        resultado = face_recognition.compare_faces([base_encoding], received_encoding)
-
-        if resultado[0]:
-            guardar_resultado(db, imagen_recibida.filename, base_image_filename, "Coincide")
-            return {"resultado": f"La imagen coincide con {base_image_filename}"}
-
-    guardar_resultado(db, imagen_recibida.filename, "Ninguna", "No coincide")
-    return {"resultado": "No hay coincidencias con las imágenes de la base"}
+    db.refresh(comparacion)
+    return comparacion
